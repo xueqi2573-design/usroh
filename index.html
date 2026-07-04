@@ -1,23 +1,4 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Peta Pantau Keluarga</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-        #header { background: #007bff; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
-        #map { height: calc(100vh - 80px); width: 100%; }
-    </style>
-</head>
-<body>
-
-    <div id="header">Peta Pemantau Lokasi Multi-Keluarga</div>
-    <div id="map"></div>
-
-    <script>
+<script>
         // URL mengambil seluruh daftar lokasi keluarga
         const FIREBASE_URL = "https://pelacak-keluarga-e8771-default-rtdb.firebaseio.com/lokasi_keluarga.json";
 
@@ -35,13 +16,34 @@
             .then(response => response.json())
             .then(data => {
                 if (data) {
-                    // Loping membaca setiap HP yang aktif di Firebase
                     Object.keys(data).forEach(function(namaKey) {
                         var user = data[namaKey];
                         if(user && user.lat && user.lng) {
                             var lat = parseFloat(user.lat);
                             var lng = parseFloat(user.lng);
                             var koordinat = [lat, lng];
+
+                            // Link khusus untuk membuka Google Maps Navigasi secara otomatis
+                            var linkGoogleMaps = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+                            // Desain tombol arah jalan yang rapi
+                            var kontenPopup = `
+                                <div style="font-family: Arial, sans-serif; line-height: 1.4;">
+                                    <b style="font-size: 14px; color: #333;">${user.nama}</b><br>
+                                    <span style="color: #666; font-size: 11px;">Update: ${user.terakhir_diupdate}</span><br><br>
+                                    <a href="${linkGoogleMaps}" target="_blank" style="
+                                        display: inline-block; 
+                                        padding: 6px 12px; 
+                                        background-color: #1a73e8; 
+                                        color: white; 
+                                        text-decoration: none; 
+                                        border-radius: 4px; 
+                                        font-weight: bold; 
+                                        font-size: 12px;
+                                        text-align: center;
+                                    ">🚀 Petunjuk Arah (Google Maps)</a>
+                                </div>
+                            `;
 
                             // Jika nama HP tersebut belum ada di peta, buat pin baru
                             if (!daftarMarker[namaKey]) {
@@ -51,8 +53,8 @@
                                 daftarMarker[namaKey].setLatLng(koordinat);
                             }
 
-                            // Beri balon teks di atas masing-masing pin sesuai nama HP-nya
-                            daftarMarker[namaKey].bindPopup(`<b>${user.nama}</b><br>Update: ${user.terakhir_diupdate}`);
+                            // Pasang balon teks + tombol arah jalan ke pin masing-masing
+                            daftarMarker[namaKey].bindPopup(kontenPopup);
                         }
                     });
                 }
@@ -64,5 +66,3 @@
         // Cek pergerakan ke-7 HP tiap 5 detik sekali
         setInterval(ambilDataSemuaLokasi, 5000);
     </script>
-</body>
-</html>

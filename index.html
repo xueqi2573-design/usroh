@@ -21,31 +21,34 @@
         // URL mengambil seluruh daftar lokasi keluarga dari Firebase Anda
         const FIREBASE_URL = "https://pelacak-keluarga-e8771-default-rtdb.firebaseio.com/lokasi_keluarga.json";
 
+        // Inisialisasi Peta awal (Default dunia/Indonesia dulu sebelum data masuk)
         var map = L.map('map').setView([-2.548926, 118.014863], 5);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Wadah memori untuk menampung banyak pin HP
         var daftarMarker = {};
+        var sudahFokusAwal = false; // Penanda agar kamera hanya otomatis zoom di awal saja
 
         function ambilDataSemuaLokasi() {
             fetch(FIREBASE_URL)
             .then(response => response.json())
             .then(data => {
                 if (data) {
+                    var kumpulanKoordinat = []; // Menampung semua titik lokasi HP yang aktif
+
                     Object.keys(data).forEach(function(namaKey) {
                         var user = data[namaKey];
                         if(user && user.lat && user.lng) {
                             var lat = parseFloat(user.lat);
                             var lng = parseFloat(user.lng);
                             var koordinat = [lat, lng];
+                            
+                            kumpulanKoordinat.push(koordinat);
 
-                            // Link resmi untuk membuka Google Maps Navigasi (Sudah diperbaiki)
                             var linkGoogleMaps = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
-                            // Desain tombol arah jalan yang rapi di dalam peta
                             var kontenPopup = `
                                 <div style="font-family: Arial, sans-serif; line-height: 1.4; min-width: 150px;">
                                     <b style="font-size: 14px; color: #333;">${user.nama}</b><br>
@@ -64,25 +67,29 @@
                                 </div>
                             `;
 
-                            // Jika nama HP tersebut belum ada di peta, buat pin baru
                             if (!daftarMarker[namaKey]) {
                                 daftarMarker[namaKey] = L.marker(koordinat).addTo(map);
                             } else {
-                                // Jika sudah ada, tinggal geser posisi terbarunya
                                 daftarMarker[namaKey].setLatLng(koordinat);
                             }
 
-                            // Pasang balon teks + tombol arah jalan ke pin masing-masing
                             daftarMarker[namaKey].bindPopup(kontenPopup);
                         }
                     });
+
+                    // FITUR OTOMATIS: Zoom otomatis tepat di area lokasi pin berada
+                    if (kumpulanKoordinat.length > 0 && !sudahFokusAwal) {
+                        // Membuat batas area (bounds) otomatis membungkus semua pin HP yang terdeteksi
+                        var bounds = L.latLngBounds(kumpulanKoordinat);
+                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                        sudahFokusAwal = true; // Kunci agar kamera tidak merebut fokus saat Anda sedang menggeser peta manual nanti
+                    }
                 }
             })
             .catch(error => console.error("Gagal memuat data server:", error));
         }
 
         ambilDataSemuaLokasi();
-        // Cek pergerakan tiap 5 detik sekali
         setInterval(ambilDataSemuaLokasi, 5000);
     </script>
 </body>

@@ -10,6 +10,22 @@
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
         #header { background: #007bff; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
         #map { height: calc(100vh - 80px); width: 100%; }
+        
+        /* Gaya Desain Kustom untuk Balon Simbol Nama Warni */
+        .pin-keluarga {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
@@ -18,10 +34,8 @@
     <div id="map"></div>
 
     <script>
-        // URL mengambil seluruh daftar lokasi keluarga dari Firebase Anda
         const FIREBASE_URL = "https://pelacak-keluarga-e8771-default-rtdb.firebaseio.com/lokasi_keluarga.json";
 
-        // Inisialisasi Peta awal (Default dunia/Indonesia dulu sebelum data masuk)
         var map = L.map('map').setView([-2.548926, 118.014863], 5);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -29,14 +43,32 @@
         }).addTo(map);
 
         var daftarMarker = {};
-        var sudahFokusAwal = false; // Penanda agar kamera hanya otomatis zoom di awal saja
+        var sudahFokusAwal = false;
+
+        // 1. Kamus Warna: Mengatur warna otomatis berdasarkan nama agar tidak tabrakan
+        function dapatkanWarnaNama(nama) {
+            let n = nama.toLowerCase();
+            if (n.includes("istri")) return "#e91e63"; // Pink
+            if (n.includes("suami")) return "#3f51b5"; // Biru Tua
+            if (n.includes("anak 1") || n.includes("anak1")) return "#ff5722"; // Oranye
+            if (n.includes("anak 2") || n.includes("anak2")) return "#4caf50"; // Hijau
+            if (n.includes("anak 3") || n.includes("anak3")) return "#9c27b0"; // Ungu
+            
+            // Warna acak cadangan jika namanya bebas
+            let hash = 0;
+            for (let i = 0; i < n.length; i++) {
+                hash = n.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            let c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+            return "#" + "00000".substring(0, 6 - c.length) + c;
+        }
 
         function ambilDataSemuaLokasi() {
             fetch(FIREBASE_URL)
             .then(response => response.json())
             .then(data => {
                 if (data) {
-                    var kumpulanKoordinat = []; // Menampung semua titik lokasi HP yang aktif
+                    var kumpulanKoordinat = [];
 
                     Object.keys(data).forEach(function(namaKey) {
                         var user = data[namaKey];
@@ -47,11 +79,23 @@
                             
                             kumpulanKoordinat.push(koordinat);
 
-                            var linkGoogleMaps = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                            // Ambil huruf pertama dari nama untuk dijadikan inisial di peta (misal "Anak 1" -> "A")
+                            var inisial = user.nama ? user.nama.substring(0, 1).toUpperCase() : "?";
+                            var warnaBg = dapatkanWarnaNama(user.nama || "");
+
+                            // 2. MEMBUAT SIMBOL BALON KUSTOM BERDASARKAN INISIAL & WARNA
+                            var ikonKustom = L.divIcon({
+                                html: `<div class="pin-keluarga" style="background-color: ${warnaBg};">${inisial}</div>`,
+                                className: 'wadah-ikon-kustom',
+                                iconSize: [32, 32],
+                                iconAnchor: [16, 16] // Agar titik tengah lingkaran pas di koordinat GPS
+                            });
+
+                            var linkGoogleMaps = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
                             var kontenPopup = `
                                 <div style="font-family: Arial, sans-serif; line-height: 1.4; min-width: 150px;">
-                                    <b style="font-size: 14px; color: #333;">${user.nama}</b><br>
+                                    <b style="font-size: 14px; color: ${warnaBg};">${user.nama}</b><br>
                                     <span style="color: #666; font-size: 11px;">Update: ${user.terakhir_diupdate}</span><br><br>
                                     <a href="${linkGoogleMaps}" target="_blank" style="
                                         display: block; 
@@ -67,22 +111,23 @@
                                 </div>
                             `;
 
+                            // Jika penanda belum ada, buat baru memakai ikon kustom kita
                             if (!daftarMarker[namaKey]) {
-                                daftarMarker[namaKey] = L.marker(koordinat).addTo(map);
+                                daftarMarker[namaKey] = L.marker(koordinat, { icon: ikonKustom }).addTo(map);
                             } else {
+                                // Jika sudah ada, geser posisi dan perbarui ikonnya (jika namanya diubah)
                                 daftarMarker[namaKey].setLatLng(koordinat);
+                                daftarMarker[namaKey].setIcon(ikonKustom);
                             }
 
                             daftarMarker[namaKey].bindPopup(kontenPopup);
                         }
                     });
 
-                    // FITUR OTOMATIS: Zoom otomatis tepat di area lokasi pin berada
                     if (kumpulanKoordinat.length > 0 && !sudahFokusAwal) {
-                        // Membuat batas area (bounds) otomatis membungkus semua pin HP yang terdeteksi
                         var bounds = L.latLngBounds(kumpulanKoordinat);
                         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-                        sudahFokusAwal = true; // Kunci agar kamera tidak merebut fokus saat Anda sedang menggeser peta manual nanti
+                        sudahFokusAwal = true;
                     }
                 }
             })

@@ -1,5 +1,24 @@
-<script>
-        // URL mengambil seluruh daftar lokasi keluarga
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peta Pantau Keluarga</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        #header { background: #007bff; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
+        #map { height: calc(100vh - 80px); width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="header">Peta Pemantau Lokasi Multi-Keluarga</div>
+    <div id="map"></div>
+
+    <script>
+        // URL mengambil seluruh daftar lokasi keluarga dari Firebase Anda
         const FIREBASE_URL = "https://pelacak-keluarga-e8771-default-rtdb.firebaseio.com/lokasi_keluarga.json";
 
         var map = L.map('map').setView([-2.548926, 118.014863], 5);
@@ -23,17 +42,17 @@
                             var lng = parseFloat(user.lng);
                             var koordinat = [lat, lng];
 
-                            // Link khusus untuk membuka Google Maps Navigasi secara otomatis
+                            // Link resmi untuk membuka Google Maps Navigasi (Sudah diperbaiki)
                             var linkGoogleMaps = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
-                            // Desain tombol arah jalan yang rapi
+                            // Desain tombol arah jalan yang rapi di dalam peta
                             var kontenPopup = `
-                                <div style="font-family: Arial, sans-serif; line-height: 1.4;">
+                                <div style="font-family: Arial, sans-serif; line-height: 1.4; min-width: 150px;">
                                     <b style="font-size: 14px; color: #333;">${user.nama}</b><br>
                                     <span style="color: #666; font-size: 11px;">Update: ${user.terakhir_diupdate}</span><br><br>
                                     <a href="${linkGoogleMaps}" target="_blank" style="
-                                        display: inline-block; 
-                                        padding: 6px 12px; 
+                                        display: block; 
+                                        padding: 8px 12px; 
                                         background-color: #1a73e8; 
                                         color: white; 
                                         text-decoration: none; 
@@ -63,6 +82,8 @@
         }
 
         ambilDataSemuaLokasi();
-        // Cek pergerakan ke-7 HP tiap 5 detik sekali
+        // Cek pergerakan tiap 5 detik sekali
         setInterval(ambilDataSemuaLokasi, 5000);
     </script>
+</body>
+</html>
